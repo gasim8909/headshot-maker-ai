@@ -25,12 +25,12 @@ export default function SignupSuccessPage() {
   }, [router]);
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="ai-container-sm py-12">
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4 dark:bg-gray-800">
+        <div className="ai-card">
           <div className="text-center mb-6">
             <svg 
-              className="mx-auto h-16 w-16 text-green-500" 
+              className="mx-auto h-16 w-16 text-accent-500" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24" 
@@ -53,7 +53,7 @@ export default function SignupSuccessPage() {
             Your account has been created and is ready to use. Please check your email to verify your account.
           </p>
           
-          <div className="bg-blue-50 p-4 rounded-md text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 mb-6">
+          <div className="bg-primary-50 p-4 rounded-md text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 mb-6">
             <p className="text-center">
               You will be redirected to the login page in {countdown} seconds...
             </p>
@@ -62,7 +62,7 @@ export default function SignupSuccessPage() {
           <div className="text-center">
             <Link 
               href="/login" 
-              className="inline-block py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="ai-button-primary"
             >
               Continue to Login
             </Link>

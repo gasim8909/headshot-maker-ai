@@ -11,7 +11,7 @@ export interface UserProfile {
 
 export interface UserSubscription {
   user_id: string;
-  tier: 'free' | 'premium' | 'professional';
+  tier: 'guest' | 'free' | 'premium' | 'professional';
   used_generations: number;
 }
 

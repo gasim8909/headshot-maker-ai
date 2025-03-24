@@ -14,8 +14,11 @@ export interface GenerateImageRequest {
   imageData: string;
   settings: {
     style: string;
-    lighting?: string;
-    background?: string;
+    quantity?: number;
+    lighting?: number;
+    background?: string | null;
+    customColor?: string;
+    customStylePrompt?: string;  // For custom style descriptions
     sharpness?: string;
     expression?: string;
     headPosition?: string;

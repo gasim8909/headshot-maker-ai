@@ -2,8 +2,11 @@
 
 export interface HeadshotSettings {
   style: string;
-  lighting: string;
-  background: string;
+  quantity?: number;
+  lighting: number | string;
+  background: string | null;
+  customColor?: string;
+  customStylePrompt?: string;  // For custom style prompts
   sharpness: string;
   expression: string;
   headPosition: string;
@@ -18,6 +21,7 @@ export interface GeneratedImageData {
 export interface GeneratedHeadshot {
   text: string | null;
   images: GeneratedImageData[];
+  prompt?: string; // The prompt used to generate the images
 }
 
 export interface GeminiContent {

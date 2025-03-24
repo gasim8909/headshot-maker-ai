@@ -7,15 +7,8 @@ export async function POST(request: NextRequest) {
     // Get user session
     const { data: { session } } = await supabase.auth.getSession();
     
-    if (!session) {
-      return NextResponse.json<ApiResponse>({ 
-        success: false,
-        error: 'Unauthorized' 
-      }, { status: 401 });
-    }
-    
-    // Get the user's ID
-    const userId = session.user.id;
+    // Get the user's ID or use "guest" for non-authenticated users
+    const userId = session ? session.user.id : 'guest';
     
     // Parse the request body
     const body = await request.json() as FeedbackRequest;
@@ -35,7 +28,8 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         image_id: imageId,
         rating,
-        feedback_text: feedback || null
+        feedback_text: feedback || null,
+        is_guest: !session
       });
     
     if (error) {

@@ -20,7 +20,23 @@ export async function postData(url: string, data: any): Promise<any> {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      // Extract error message from different possible locations in the response
+      const errorMessage = 
+        errorData.error || 
+        errorData.message || 
+        (errorData.error && typeof errorData.error === 'string' ? errorData.error : null) ||
+        `Request failed with status ${response.status}`;
+        
+      // For debugging - log the full error data to help diagnose issues
+      console.log('API Error Data:', errorData);
+      
+      // Create error object with additional information
+      const error = new Error(errorMessage);
+      // @ts-ignore - Add additional properties to the error object
+      error.status = response.status;
+      // @ts-ignore - Add the raw error data for more context
+      error.data = errorData;
+      throw error;
     }
 
     return await response.json();
@@ -41,7 +57,23 @@ export async function getData(url: string): Promise<any> {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      // Extract error message from different possible locations in the response
+      const errorMessage = 
+        errorData.error || 
+        errorData.message || 
+        (errorData.error && typeof errorData.error === 'string' ? errorData.error : null) ||
+        `Request failed with status ${response.status}`;
+        
+      // For debugging - log the full error data to help diagnose issues
+      console.log('API Error Data:', errorData);
+      
+      // Create error object with additional information
+      const error = new Error(errorMessage);
+      // @ts-ignore - Add additional properties to the error object
+      error.status = response.status;
+      // @ts-ignore - Add the raw error data for more context
+      error.data = errorData;
+      throw error;
     }
 
     return await response.json();

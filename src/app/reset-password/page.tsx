@@ -70,9 +70,9 @@ export default function ResetPasswordPage() {
 
   if (!hasSession && !success) {
     return (
-      <div className="container mx-auto px-4 py-12">
+      <div className="ai-container-sm py-12">
         <div className="w-full max-w-md mx-auto">
-          <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4 dark:bg-gray-800">
+          <div className="ai-card">
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-white">Invalid Reset Link</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-center">
               This password reset link is invalid or has expired.
@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
             <div className="text-center mt-6">
               <Link 
                 href="/forgot-password" 
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
               >
                 Request a new password reset link
               </Link>
@@ -92,19 +92,19 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="ai-container-sm py-12">
       <div className="w-full max-w-md mx-auto">
-        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4 dark:bg-gray-800">
+        <form onSubmit={handleSubmit} className="ai-card">
           <h2 className="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-white">Reset Your Password</h2>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div className="mb-4 p-3 ai-badge-error">
               {error}
             </div>
           )}
           
           {success ? (
-            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+            <div className="mb-6 p-4 ai-badge-success">
               <p>
                 Your password has been successfully reset! You will be redirected to the login page in a few seconds.
               </p>
@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
           ) : (
             <>
               <div className="mb-4">
-                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="password">
+                <label className="ai-label" htmlFor="password">
                   New Password
                 </label>
                 <input
@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                   required
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="ai-input"
                   placeholder="••••••••"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
               </div>
               
               <div className="mb-6">
-                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="confirm-password">
+                <label className="ai-label" htmlFor="confirm-password">
                   Confirm New Password
                 </label>
                 <input
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                   required
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="ai-input"
                   placeholder="••••••••"
                 />
               </div>
@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full ai-button-primary ${
                     loading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
@@ -161,7 +161,7 @@ export default function ResetPasswordPage() {
           {!success && (
             <div className="text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                <Link href="/login" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                <Link href="/login" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
                   Back to Sign In
                 </Link>
               </p>
