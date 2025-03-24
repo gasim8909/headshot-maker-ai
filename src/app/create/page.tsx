@@ -151,11 +151,14 @@ export default function CreateHeadshot() {
         
         // Scroll to results section
         setTimeout(() => {
-          window.scrollTo({ 
-            top: document.body.scrollHeight, 
-            behavior: 'smooth' 
-          });
-        }, 300);
+          const resultsSection = document.getElementById('results-section');
+          if (resultsSection) {
+            resultsSection.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }, 500); // Increased delay to ensure images have time to render
       } else {
         throw new Error(response.error || 'Generation failed');
       }

@@ -162,7 +162,7 @@ export default function PreviewSection({
   // If there are no generated images yet, show a placeholder
   if (!generatedImages || generatedImages.length === 0) {
     return (
-      <div className="w-full rounded-lg border border-gray-200 p-6 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+      <div id="results-section" className="w-full rounded-lg border border-gray-200 p-6 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Generated Headshots</h2>
         <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg dark:bg-gray-900">
           <p className="text-gray-500 dark:text-gray-400">Your AI-generated headshots will appear here.</p>
@@ -172,7 +172,7 @@ export default function PreviewSection({
   }
   
   return (
-    <div className="w-full">
+    <div id="results-section" className="w-full">
       <div className="mb-4">
         <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Your Generated Headshots</h2>
         <p className="text-gray-600 dark:text-gray-400">
