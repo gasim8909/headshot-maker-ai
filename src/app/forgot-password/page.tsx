@@ -2,13 +2,14 @@
 
 import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
-import supabase from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  const { forgotPassword } = useAuth();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -17,13 +18,11 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      // Send password reset email using Supabase
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      // Send password reset email using AuthContext
+      const { success, error } = await forgotPassword(email);
 
-      if (error) {
-        throw error;
+      if (!success) {
+        throw error || new Error('Error sending reset email');
       }
 
       setSuccess(true);

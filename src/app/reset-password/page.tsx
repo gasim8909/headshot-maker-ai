@@ -3,7 +3,7 @@
 import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import supabase from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState<string>('');
@@ -13,20 +13,14 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState<boolean>(false);
   const [hasSession, setHasSession] = useState<boolean>(false);
   const router = useRouter();
+  const { session, resetPassword } = useAuth();
 
   useEffect(() => {
     // Check if user came from a valid password reset flow
-    async function checkAuthSession() {
-      const { data } = await supabase.auth.getSession();
-      
-      // User needs to have a session from the password reset email
-      if (data.session) {
-        setHasSession(true);
-      }
+    if (session) {
+      setHasSession(true);
     }
-    
-    checkAuthSession();
-  }, []);
+  }, [session]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -46,13 +40,11 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      // Update password with Supabase
-      const { error } = await supabase.auth.updateUser({
-        password,
-      });
+      // Update password with AuthContext
+      const { success, error } = await resetPassword(password);
 
-      if (error) {
-        throw error;
+      if (!success) {
+        throw error || new Error('Error updating password');
       }
 
       setSuccess(true);

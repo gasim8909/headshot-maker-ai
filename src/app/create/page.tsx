@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import supabase from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import UploadSection from '@/components/UploadSection';
 import StyleSelection from '@/components/StyleSelection';
 import AdvancedSettings from '@/components/AdvancedSettings';
@@ -13,11 +13,11 @@ import { postData } from '@/utils/apiClient';
 interface Subscription {
   tier: 'guest' | 'free' | 'premium' | 'professional';
   used_generations: number;
+  credits_remaining: number;
 }
 
 export default function CreateHeadshot() {
-  const [user, setUser] = useState<any>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const { user, subscription, deductCredit, getUserCredits } = useAuth();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState('corporate');
   const [customStylePrompt, setCustomStylePrompt] = useState('');
@@ -36,35 +36,7 @@ export default function CreateHeadshot() {
   const [error, setError] = useState(null);
   const router = useRouter();
 
-  useEffect(() => {
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        // Enable Guest Mode instead of redirecting to login
-        setUser(null);
-        setSubscription({ tier: 'guest', used_generations: 0 });
-        return;
-      }
-      
-      setUser(session.user);
-      
-      // Get subscription details
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
-      
-      if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-        console.error('Error fetching subscription:', subscriptionError);
-      } else {
-        setSubscription(subscriptionData || { tier: 'free', used_generations: 0 });
-      }
-    }
-    
-    checkAuth();
-  }, [router]);
+  // Auth and subscription data is now managed by the AuthContext
 
   const handleImageUpload = (imageData: string) => {
     setUploadedImage(imageData);
@@ -143,11 +115,16 @@ export default function CreateHeadshot() {
           setGenerationPrompt(response.results.prompt);
         }
         
-        // Update subscription info with new usage count
-        setSubscription({
-          ...subscription,
-          used_generations: response.usedGenerations
-        });
+        // Deduct credits for the generations
+        // Call deductCredit from AuthContext once for each generated image
+        try {
+          for (let i = 0; i < generationQuantity; i++) {
+            await deductCredit();
+          }
+        } catch (creditError) {
+          console.error('Error deducting credits:', creditError);
+          // Continue execution even if credit deduction fails
+        }
         
         // Scroll to results section
         setTimeout(() => {
@@ -190,7 +167,7 @@ export default function CreateHeadshot() {
           <div>
             <div className="font-medium mb-1">Access Limitation{tierInfo}{limitInfo}</div>
             <span>{err.message}</span>
-            {subscription.tier !== 'professional' && (
+            {subscription?.tier !== 'professional' && (
               <div className="mt-2">
                 <Link href="/pricing" className="text-blue-600 dark:text-blue-400 hover:underline font-medium inline-flex items-center">
                   <span>Upgrade your plan</span>
@@ -217,6 +194,7 @@ export default function CreateHeadshot() {
         );
       }
     } finally {
+      // Always reset generating state no matter what happens
       setGenerating(false);
     }
   };
@@ -228,16 +206,8 @@ export default function CreateHeadshot() {
   };
 
   const getRemainingGenerations = () => {
-    if (!subscription) return 0;
-    
-    if (subscription.tier === 'professional') return Infinity;
-    
-    const limit = 
-      subscription.tier === 'premium' ? parseInt(process.env.NEXT_PUBLIC_PREMIUM_TIER_LIMIT || '30') : 
-      subscription.tier === 'free' ? parseInt(process.env.NEXT_PUBLIC_FREE_TIER_LIMIT || '5') : 
-      parseInt(process.env.NEXT_PUBLIC_GUEST_TIER_LIMIT || '2'); // Guest tier
-    
-    return Math.max(0, limit - subscription.used_generations);
+    // Use AuthContext's getUserCredits function
+    return getUserCredits();
   };
 
   const handleSaveImage = (imageData: any, index: number) => {

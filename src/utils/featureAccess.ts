@@ -2,6 +2,9 @@
  * Utility functions for controlling feature access based on subscription tiers
  */
 
+import { User } from '@supabase/supabase-js';
+import { UserSubscription } from '@/types/supabase';
+
 export type SubscriptionTier = 'guest' | 'free' | 'premium' | 'professional';
 
 export interface FeatureAccess {
@@ -138,6 +141,68 @@ export function canSaveToHistory(tier: SubscriptionTier, savedImagesCount: numbe
   }
   
   return false;
+}
+
+/**
+ * Check if the user has enough credits to generate images
+ */
+export function hasEnoughCredits(subscription: UserSubscription | null): boolean {
+  if (!subscription) return false;
+  return subscription.credits_remaining > 0;
+}
+
+/**
+ * Get user's subscription tier from subscription data
+ */
+export function getUserTier(user: User | null, subscription: UserSubscription | null): SubscriptionTier {
+  if (!user) return 'guest';
+  if (!subscription) return 'free';
+  return subscription.tier as SubscriptionTier;
+}
+
+/**
+ * Check if user has access to a specific style based on their subscription
+ */
+export function hasStyleAccess(style: string, user: User | null, subscription: UserSubscription | null): boolean {
+  const tier = getUserTier(user, subscription);
+  const featureAccess = getFeatureAccess(tier);
+  
+  if (style === 'custom') {
+    return featureAccess.hasCustomStyleAccess;
+  }
+  
+  return featureAccess.allowedStyles.includes(style);
+}
+
+/**
+ * Check if user has access to advanced settings
+ */
+export function hasAdvancedSettingsAccess(
+  user: User | null, 
+  subscription: UserSubscription | null, 
+  settingName?: string
+): boolean {
+  const tier = getUserTier(user, subscription);
+  const featureAccess = getFeatureAccess(tier);
+  
+  if (featureAccess.hasAdvancedSettings === true) {
+    return true;
+  }
+  
+  if (featureAccess.hasAdvancedSettings === 'limited' && settingName && featureAccess.allowedAdvancedSettings) {
+    return featureAccess.allowedAdvancedSettings.includes(settingName);
+  }
+  
+  return false;
+}
+
+/**
+ * Get number of images user can generate per session based on their tier
+ */
+export function getMaxQuantity(user: User | null, subscription: UserSubscription | null): number {
+  const tier = getUserTier(user, subscription);
+  const featureAccess = getFeatureAccess(tier);
+  return featureAccess.maxQuantity;
 }
 
 /**

@@ -3,17 +3,20 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import supabase from '../../lib/supabase';
-import { UserProfile } from '../../types/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { UserProfile } from '@/types/supabase';
 
 export default function SignupForm() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [name, setName] = useState<string>('');
+  const [dateOfBirth, setDateOfBirth] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -33,39 +36,20 @@ export default function SignupForm() {
     setLoading(true);
 
     try {
-      // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name
-          }
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error('Failed to create user account');
-      }
-
-      // Create initial subscription record (free tier)
-      const { error: subscriptionError } = await supabase
-        .from('user_subscriptions')
-        .insert({
-          user_id: data.user.id,
-          tier: 'free',
-          used_generations: 0
-        });
+      // Sign up with our AuthContext
+      const userData: Partial<UserProfile> = {
+        full_name: name,
+        date_of_birth: dateOfBirth,
+        gender
+      };
       
-      if (subscriptionError) {
-        console.error('Error creating subscription record:', subscriptionError);
+      const { success, error } = await signUp(email, password, userData);
+
+      if (!success) {
+        throw error || new Error('Failed to create account');
       }
 
-      // Redirect to dashboard or confirmation page
+      // Redirect to signup success page
       router.push('/signup-success');
     } catch (err: any) {
       setError(err.message || 'Error creating account');
@@ -133,7 +117,7 @@ export default function SignupForm() {
           </p>
         </div>
         
-        <div className="mb-6">
+        <div className="mb-4">
           <label className="ai-label" htmlFor="confirm-password">
             Confirm Password
           </label>
@@ -146,6 +130,39 @@ export default function SignupForm() {
             className="ai-input"
             placeholder="••••••••"
           />
+        </div>
+        
+        <div className="mb-4">
+          <label className="ai-label" htmlFor="date-of-birth">
+            Date of Birth
+          </label>
+          <input
+            id="date-of-birth"
+            type="date"
+            value={dateOfBirth}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setDateOfBirth(e.target.value)}
+            required
+            className="ai-input"
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label className="ai-label" htmlFor="gender">
+            Gender
+          </label>
+          <select
+            id="gender"
+            value={gender}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setGender(e.target.value)}
+            required
+            className="ai-input"
+          >
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="non-binary">Non-binary</option>
+            <option value="prefer-not-to-say">Prefer not to say</option>
+          </select>
         </div>
         
         <div className="mb-6">

@@ -1,13 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
-
-// Mock user hook since we don't have the actual Supabase helpers
-const useUser = () => ({ 
-  user: null, 
-  subscription: null 
-});
+import { useAuth } from '@/contexts/AuthContext';
 
 // Icon components
 const SunIcon = () => (
@@ -34,51 +29,80 @@ const XIcon = () => (
   </svg>
 );
 
-// TypeScript interfaces
+// TypeScript interfaces for subscription tiers
 interface SubscriptionTier {
   total: number;
-  used: number;
 }
 
 interface SubscriptionTiers {
   [key: string]: SubscriptionTier;
 }
 
-interface Subscription {
-  tier: string;
-}
-
-interface User {
-  email: string;
-}
-
 const Header: React.FC = () => {
   const pathname = usePathname();
-  // Type assertion for mock data
-  const { user, subscription } = useUser() as { 
-    user: User | null;
-    subscription: Subscription | null;
-  };
+  const router = useRouter();
+  const { user, profile, subscription, signOut, getUserCredits } = useAuth();
   
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Mock function - implement with actual subscription data
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownRef]);
+
+  // Get user's full name or fall back to email
+  const getUserName = (): string => {
+    // Try to get full name from user metadata or profile
+    const fullName = user?.user_metadata?.full_name || profile?.full_name || '';
+    
+    // If we have a full name, return it
+    if (fullName) {
+      return fullName;
+    }
+    
+    // Otherwise fall back to email or user ID
+    return user?.email || user?.id || '';
+  };
+  
+  // Get user's first initial
+  const getUserInitial = (): string => {
+    const name = getUserName();
+    return name.charAt(0).toUpperCase();
+  };
+
+  // Get remaining credits function - uses actual subscription data now
   const getRemainingCredits = (): number | string => {
     if (!user) return 0;
     
-    // This would be fetched from your database in a real implementation
+    // For unlimited tier check
     const subscriptionTiers: SubscriptionTiers = {
-      free: { total: 5, used: 2 },
-      premium: { total: 30, used: 12 },
-      professional: { total: Number.POSITIVE_INFINITY, used: 45 }
+      free: { total: 3 },
+      premium: { total: 30 },
+      professional: { total: Number.POSITIVE_INFINITY }
     };
     
     const userTier = subscription?.tier || 'free';
-    const { total, used } = subscriptionTiers[userTier];
     
-    return total === Number.POSITIVE_INFINITY ? 'Unlimited' : (total - used);
+    // Return unlimited for professional tier
+    if (subscriptionTiers[userTier]?.total === Number.POSITIVE_INFINITY) {
+      return 'Unlimited';
+    }
+    
+    // Otherwise return actual credits remaining
+    return getUserCredits();
   };
 
   return (
@@ -102,7 +126,7 @@ const Header: React.FC = () => {
           {/* Desktop navigation */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-5">
             <Link href="/create">
-              <span className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              <span className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 animate-create-button ${
                 pathname === '/create' 
                   ? 'bg-gradient-primary text-white shadow-soft-md' 
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-soft-sm'
@@ -110,18 +134,6 @@ const Header: React.FC = () => {
                 Create
               </span>
             </Link>
-            
-            {user && (
-              <Link href="/dashboard">
-                <span className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  pathname === '/dashboard' 
-                  ? 'bg-gradient-primary text-white shadow-soft-md' 
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-soft-sm'
-                } cursor-pointer`}>
-                  Dashboard
-                </span>
-              </Link>
-            )}
             
             <Link href="/pricing">
               <span className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
@@ -151,21 +163,38 @@ const Header: React.FC = () => {
                 {/* Credit counter */}
                 <div className="mr-4 px-4 py-1.5 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/30 border border-primary-200 dark:border-primary-800/50 rounded-full text-sm shadow-soft-sm">
                   <span className="font-semibold text-primary-700 dark:text-primary-300">{getRemainingCredits()}</span> 
-                  <span className="text-gray-700 dark:text-gray-300">credits</span>
+                  <span className="text-gray-700 dark:text-gray-300"> credits</span>
                 </div>
                 
-                {/* User dropdown - simplified version */}
-                <div className="relative">
+                {/* User dropdown */}
+                <div className="relative" ref={dropdownRef}>
                   <div className="flex items-center">
                     <button 
+                      onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                       className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-300 focus:outline-none"
                     >
-                      <span className="mr-2">{user.email}</span>
                       <span className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-medium shadow-soft-sm">
-                        {user.email.charAt(0).toUpperCase()}
+                        {getUserInitial()}
                       </span>
                     </button>
                   </div>
+                  
+                  {/* Dropdown menu */}
+                  {userDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700">
+                      <Link href="/account">
+                        <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                          My Account
+                        </div>
+                      </Link>
+                      <button
+                        onClick={signOut}
+                        className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -209,24 +238,13 @@ const Header: React.FC = () => {
             <Link href="/create">
               <div className={`block px-4 py-2 rounded-lg text-base font-medium ${
                 pathname === '/create' 
-                  ? 'bg-gradient-primary text-white shadow-soft-sm' 
+                  ? 'bg-gradient-primary text-white shadow-soft-sm animate-create-button' 
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
               } cursor-pointer transition-all duration-300`}>
                 Create
               </div>
             </Link>
             
-            {user && (
-              <Link href="/dashboard">
-                <div className={`block px-4 py-2 rounded-lg text-base font-medium ${
-                  pathname === '/dashboard' 
-                    ? 'bg-gradient-primary text-white shadow-soft-sm' 
-                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
-                } cursor-pointer transition-all duration-300`}>
-                  Dashboard
-                </div>
-              </Link>
-            )}
             
             <Link href="/pricing">
               <div className={`block px-4 py-2 rounded-lg text-base font-medium ${
@@ -278,14 +296,11 @@ const Header: React.FC = () => {
               <div className="flex items-center px-5">
                 <div className="flex-shrink-0">
                   <span className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-medium shadow-soft-sm">
-                    {user.email.charAt(0).toUpperCase()}
+                    {getUserInitial()}
                   </span>
                 </div>
                 <div className="ml-3">
                   <div className="text-base font-medium text-gray-800 dark:text-white">
-                    {user.email}
-                  </div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     {subscription?.tier || 'Free'} Plan
                   </div>
                 </div>
@@ -296,15 +311,12 @@ const Header: React.FC = () => {
               <div className="mt-3 px-2 space-y-1">
                 <Link href="/account">
                   <div className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer transition-all duration-300">
-                    Account Settings
+                    My Account
                   </div>
                 </Link>
                 <button 
                   className="w-full text-left block px-4 py-2 rounded-lg text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary-600 dark:hover:text-primary-400 transition-all duration-300"
-                  onClick={() => {
-                    // Sign out logic - implement with Supabase
-                    console.log('Sign out');
-                  }}
+                  onClick={signOut}
                 >
                   Sign out
                 </button>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4263eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #364fc7;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .config-option {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .config-option label {
+            width: 150px;
+            font-weight: bold;
+        }
+        .config-option input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+
+    <div class="card">
+        <h2>Connection Configuration</h2>
+        <div class="config-option">
+            <label for="supabaseUrl">Supabase URL:</label>
+            <input type="text" id="supabaseUrl" value="https://meoowqsjtnsbmaukwyys.supabase.co">
+        </div>
+        <div class="config-option">
+            <label for="supabaseKey">Anon Key:</label>
+            <input type="text" id="supabaseKey" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lb293cXNqdG5zYm1hdWt3eXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4NDQxODQsImV4cCI6MjA1ODQyMDE4NH0.l5zX-Y8-Gyx6oYzdrrMSgci5PpFtM1PCSUcDi0aeWpc">
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Connection Tests</h2>
+        <button id="testHealth">Test Health API</button>
+        <button id="testPing">Test Ping Query</button>
+        <button id="testTable">Test Table Access</button>
+    </div>
+
+    <div class="card">
+        <h2>Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Collect results for display
+            function addResult(testName, status, message, data = null) {
+                const results = document.getElementById('results');
+                const resultElement = document.createElement('div');
+                resultElement.innerHTML = `
+                    <h3>${testName}</h3>
+                    <p class="${status.toLowerCase()}">${status}: ${message}</p>
+                    ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+                    <hr>
+                `;
+                results.appendChild(resultElement);
+            }
+
+            // Create Supabase client
+            function getClient() {
+                const supabaseUrl = document.getElementById('supabaseUrl').value;
+                const supabaseKey = document.getElementById('supabaseKey').value;
+                
+                if (!supabaseUrl || !supabaseKey) {
+                    throw new Error('Supabase URL and key are required');
+                }
+                
+                return supabase.createClient(supabaseUrl, supabaseKey);
+            }
+
+            // Test health API
+            document.getElementById('testHealth').addEventListener('click', async function() {
+                try {
+                    const supabaseUrl = document.getElementById('supabaseUrl').value;
+                    const supabaseKey = document.getElementById('supabaseKey').value;
+                    
+                    const start = performance.now();
+                    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': `Bearer ${supabaseKey}`
+                        }
+                    });
+                    const end = performance.now();
+                    const responseTime = `${(end - start).toFixed(2)}ms`;
+                    
+                    if (response.ok) {
+                        const data = await response.text();
+                        addResult('Health API Test', 'SUCCESS', `Connected in ${responseTime}`, {
+                            status: response.status,
+                            statusText: response.statusText,
+                            data: data
+                        });
+                    } else {
+                        const errorText = await response.text();
+                        addResult('Health API Test', 'ERROR', `Failed with status ${response.status}`, {
+                            status: response.status,
+                            statusText: response.statusText,
+                            error: errorText
+                        });
+                    }
+                } catch (error) {
+                    addResult('Health API Test', 'ERROR', error.message);
+                }
+            });
+
+            // Test ping query
+            document.getElementById('testPing').addEventListener('click', async function() {
+                try {
+                    const client = getClient();
+                    const start = performance.now();
+                    const { data, error } = await client.rpc('pg_stat_database');
+                    const end = performance.now();
+                    const responseTime = `${(end - start).toFixed(2)}ms`;
+                    
+                    if (error) {
+                        addResult('Ping Query Test', 'ERROR', error.message, error);
+                    } else {
+                        addResult('Ping Query Test', 'SUCCESS', `Connected in ${responseTime}`, data);
+                    }
+                } catch (error) {
+                    addResult('Ping Query Test', 'ERROR', error.message);
+                }
+            });
+
+            // Test table access
+            document.getElementById('testTable').addEventListener('click', async function() {
+                try {
+                    const client = getClient();
+                    const start = performance.now();
+                    const { data, error, count } = await client
+                        .from('user_profiles')
+                        .select('*', { count: 'exact' })
+                        .limit(1);
+                    const end = performance.now();
+                    const responseTime = `${(end - start).toFixed(2)}ms`;
+                    
+                    if (error) {
+                        addResult('Table Access Test', 'ERROR', error.message, error);
+                    } else {
+                        addResult('Table Access Test', 'SUCCESS', `Connected in ${responseTime}, found ${count || 0} records`, data);
+                    }
+                } catch (error) {
+                    addResult('Table Access Test', 'ERROR', error.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

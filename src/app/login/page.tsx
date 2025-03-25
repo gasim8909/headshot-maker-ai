@@ -3,7 +3,7 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import supabase from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -20,14 +21,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Sign in with AuthContext
+      const { success, error } = await signIn(email, password);
 
-      if (error) {
-        throw error;
+      if (!success) {
+        throw error || new Error('Error signing in');
       }
 
       // Redirect to the original page or dashboard

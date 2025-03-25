@@ -29,7 +29,7 @@ export default function PreviewSection({
   const [selectedImage, setSelectedImage] = useState(generatedImages && generatedImages.length > 0 ? 0 : null);
   const [savedImages, setSavedImages] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<Record<number, boolean>>({});
-  const [saving, setSaving] = useState(false);
+  const [savingImages, setSavingImages] = useState<Record<number, boolean>>({});
   const [savedImagesCount, setSavedImagesCount] = useState(0);
   const router = useRouter();
 
@@ -39,7 +39,7 @@ export default function PreviewSection({
       if (subscription?.tier === 'free' && user) {
         try {
           const { count, error } = await supabase
-            .from('image_history')
+            .from('user_headshots')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id);
           
@@ -75,55 +75,136 @@ export default function PreviewSection({
       return; // Already saved
     }
     
-    setSaving(true);
+    // Set saving state for this specific image
+    setSavingImages(prev => ({ ...prev, [index]: true }));
+    
+    // Debug data
+    let storageSuccess = false;
+    let urlSuccess = false;
+    let databaseSuccess = false;
+    let usedStoragePath = false;
+    let debugData: {
+      stage: string;
+      storageError: any;
+      urlError: any;
+      databaseError: any;
+      userId: string | null;
+      publicUrl: string | null;
+    } = {
+      stage: "starting",
+      storageError: null,
+      urlError: null,
+      databaseError: null,
+      userId: null,
+      publicUrl: null
+    };
     
     try {
-      // Save to Supabase Storage
-      const timestamp = new Date().getTime();
-      const path = `headshots/${timestamp}_${index}.png`;
+      // Get user data first to avoid doing unnecessary work if not authenticated
+      debugData.stage = "authentication";
+      console.log("Getting authenticated user");
       
-      // Convert base64 to Blob
-      const byteCharacters = atob(imageData.data);
-      const byteArrays = [];
-      
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteArrays.push(byteCharacters.charCodeAt(i));
-      }
-      
-      const blob = new Blob([new Uint8Array(byteArrays)], { type: imageData.mimeType });
-      
-      // Upload to Supabase
-      const { data, error } = await supabase.storage
-        .from('user-headshots')
-        .upload(path, blob);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Get the URL
-      const { data: urlData } = supabase.storage
-        .from('user-headshots')
-        .getPublicUrl(path);
-      
-      // Add to image history in database
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!userData || !userData.user) {
-        throw new Error('User not authenticated');
+        const err = new Error('User not authenticated');
+        debugData.userId = "authentication failed";
+        throw err;
       }
       
-      const { error: dbError } = await supabase
-        .from('image_history')
-        .insert({
-          user_id: userData.user.id,
-          image_path: path,
-          image_url: urlData.publicUrl,
-          settings: JSON.stringify({}) // You can pass the settings here
-        });
+      debugData.userId = userData.user.id;
+      console.log("User authenticated, id:", userData.user.id);
+      
+      let imageUrl = '';
+      const timestamp = new Date().getTime();
+      
+      try {
+        // Directly proceed with the upload - the bucket already exists
+        debugData.stage = "storage upload";
+        console.log("Stage 1: Uploading to Supabase Storage");
+        
+        const path = `${timestamp}_${index}.png`;
+        
+        // Convert base64 to Blob
+        const byteCharacters = atob(imageData.data);
+        const byteArrays = [];
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteArrays.push(byteCharacters.charCodeAt(i));
+        }
+        
+        const blob = new Blob([new Uint8Array(byteArrays)], { type: imageData.mimeType });
+        
+        // Try to upload to Supabase
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from('headshots')
+          .upload(path, blob, {
+            cacheControl: '3600',
+            upsert: true
+          });
+        
+        if (storageError) {
+          console.error('Storage upload failed:', storageError);
+          debugData.storageError = storageError;
+          throw storageError;
+        }
+        
+        console.log("Storage upload successful:", storageData);
+        storageSuccess = true;
+        
+        // Get the URL
+        debugData.stage = "getting public URL";
+        console.log("Stage 2: Getting public URL");
+        
+        const { data: urlData } = supabase.storage
+          .from('headshots')
+          .getPublicUrl(path);
+        
+        if (!urlData || !urlData.publicUrl) {
+          const err = new Error('Failed to get public URL');
+          debugData.urlError = err;
+          throw err;
+        }
+        
+        imageUrl = urlData.publicUrl;
+        debugData.publicUrl = urlData.publicUrl;
+        urlSuccess = true;
+        usedStoragePath = true;
+        console.log("Public URL obtained:", urlData.publicUrl);
+      } catch (storageErr) {
+        console.error("Error in storage operations:", storageErr);
+        alert("Failed to save image to storage. Please try again or contact support if the problem persists.");
+        throw storageErr;
+      }
+      
+      // Stage 3: Add to user_headshots in database
+      debugData.stage = "database insert";
+      console.log("Stage 3: Saving to user_headshots table");
+      
+      // Show what we're inserting into the database
+      const insertData = {
+        user_id: userData.user.id,
+        image_url: imageUrl,
+        original_image_url: originalImage || '',
+        style: 'custom',
+        settings: {}, // You can pass the settings here as an object
+        created_at: new Date().toISOString()
+      };
+      
+      console.log("Inserting into user_headshots:", insertData);
+      
+      const { data: insertResult, error: dbError } = await supabase
+        .from('user_headshots')
+        .insert(insertData)
+        .select();
       
       if (dbError) {
+        debugData.databaseError = dbError;
+        console.error('Database insert failed:', dbError);
         throw dbError;
       }
+      
+      console.log("Database insert successful:", insertResult);
+      databaseSuccess = true;
       
       // Update state
       setSavedImages([...savedImages, index]);
@@ -132,11 +213,46 @@ export default function PreviewSection({
       if (onSaveImage) {
         onSaveImage(imageData, index);
       }
-    } catch (error) {
+      
+      console.log("Save process completed successfully!");
+    } catch (error: any) {
       console.error('Error saving image:', error);
-      alert('Failed to save image. Please try again.');
+      console.error('Debug data:', debugData);
+      
+      // Show detailed error message
+      let errorMessage = 'Failed to save image. ';
+      
+      if (debugData.stage === "storage upload") {
+        errorMessage += "Storage upload failed. ";
+      } else if (debugData.stage === "getting public URL") {
+        errorMessage += "Failed to get public URL. ";
+      } else if (debugData.stage === "database insert") {
+        errorMessage += "Database insert failed. ";
+      }
+      
+      // Check for common Supabase errors
+      const errorMsg = error?.message || 'Unknown error';
+      
+      if (errorMsg.includes("auth/unauthorized")) {
+        errorMessage += "Authentication error - please try logging in again.";
+      } else if (errorMsg.includes("duplicate key")) {
+        errorMessage += "This image appears to already be saved.";
+      } else {
+        errorMessage += errorMsg;
+      }
+      
+      alert(errorMessage);
     } finally {
-      setSaving(false);
+      // Clear saving state for this specific image
+      setSavingImages(prev => ({ ...prev, [index]: false }));
+      
+      // Display results in console for debugging
+      console.log("Save operation complete with results:", {
+        storageSuccess,
+        urlSuccess,
+        databaseSuccess,
+        debugData
+      });
     }
   };
   
@@ -267,7 +383,7 @@ export default function PreviewSection({
                 {userCanSaveToHistory() ? (
                   <button
                     onClick={() => saveToProfile(image, index)}
-                    disabled={savedImages.includes(index) || saving}
+                    disabled={savedImages.includes(index) || savingImages[index]}
                     title={savedImages.includes(index) ? "Saved to History" : "Save to History"}
                     className="flex flex-col items-center"
                   >
@@ -275,13 +391,13 @@ export default function PreviewSection({
                       savedImages.includes(index)
                         ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-                    } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    } ${savingImages[index] ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
                       </svg>
                     </div>
                     <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">
-                      {savedImages.includes(index) ? "Saved" : (saving ? "Saving..." : "Save")}
+                      {savedImages.includes(index) ? "Saved" : (savingImages[index] ? "Saving..." : "Save")}
                     </span>
                   </button>
                 ) : (

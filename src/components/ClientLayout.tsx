@@ -4,6 +4,7 @@ import React, { ReactNode, useEffect, useState } from 'react';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -40,8 +41,9 @@ const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
   }
 
   return (
-    <ThemeProvider>
-      <div className="relative min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
+    <AuthProvider>
+      <ThemeProvider>
+        <div className="relative min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
         {/* Decorative elements */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
           {/* Top right gradient blob */}
@@ -59,8 +61,9 @@ const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
           </main>
           <Footer />
         </div>
-      </div>
-    </ThemeProvider>
+        </div>
+      </ThemeProvider>
+    </AuthProvider>
   );
 };
 
